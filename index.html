@@ -9,16 +9,16 @@
       padding: 0;
       background: transparent;
       color: white;
-      font-family: monospace, monospace;
+      font-family: monospace;
       font-size: 3em;
       height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      user-select: none;
     }
     #display {
       letter-spacing: 2px;
-      user-select: none;
     }
   </style>
 </head>
@@ -26,48 +26,64 @@
   <div id="display">00:00:00</div>
 
   <script>
-    // Function to get today’s date at 10PM Pacific Time (PDT/PST)
     function getPacific10PM() {
-      // Create a Date object for now
       const now = new Date();
 
-      // Pacific Time offset in minutes (without daylight savings):
-      // Since JS Date uses local time or UTC, use Intl API to get the offset for America/Los_Angeles
-      const options = { timeZone: 'America/Los_Angeles', hour12: false };
-      const pacificDateStr = now.toLocaleString('en-US', { ...options, year:'numeric', month:'2-digit', day:'2-digit' });
-      const [month, day, year] = pacificDateStr.split('/');
+      // Get Pacific Time components for today
+      const pacificDateParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric'
+      }).formatToParts(now);
 
-      // Construct a string for 10:00:00 PM in Pacific Time zone for today
-      const pacific10PMStr = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}T22:00:00`;
+      // Extract year, month, day from parts
+      const parts = {};
+      pacificDateParts.forEach(({type, value}) => { parts[type] = value; });
 
-      // Convert that Pacific time to a Date object in local time zone
-      // Use Date.parse with 'America/Los_Angeles' timezone offset calculation:
-      const dateInPacific = new Date(new Date(pacific10PMStr + "-07:00")); // Fixed -07:00 offset for PDT; adjust if needed
+      // Build a Date string for 10PM Pacific today in ISO format (no timezone)
+      // "YYYY-MM-DDT22:00:00"
+      const dateStr = `${parts.year}-${parts.month.padStart(2,'0')}-${parts.day.padStart(2,'0')}T22:00:00`;
 
-      // To handle daylight savings properly, better to use Intl API to get offset:
-      // Since JS doesn't handle timezone offsets directly, approximate with Intl:
-      const pacificTime = new Date(Date.UTC(
-        parseInt(year), parseInt(month)-1, parseInt(day), 22, 0, 0
-      ));
+      // Create Date in Pacific Time by interpreting it as that timezone
+      // Trick: Create date in UTC then adjust by the timezone offset at that time
 
-      // Get the offset between UTC and America/Los_Angeles at that time
-      const tzOffsetMinutes = - (new Date(pacificTime.toLocaleString('en-US', {timeZone:'America/Los_Angeles'})).getTimezoneOffset());
+      // Parse as if UTC
+      const utcDate = new Date(dateStr + 'Z');
 
-      // Adjust pacificTime by tz offset to get correct UTC time
-      const pacific10PM = new Date(pacificTime.getTime() - tzOffsetMinutes * 60000);
+      // Get timezone offset (in minutes) for 10 PM Pacific today
+      const offsetMinutes = new Date(dateStr).getTimezoneOffset();
 
-      return pacific10PM;
+      // Calculate exact Date object for 10PM Pacific by subtracting offset
+      // Note: JS Date parses dateStr as local time by default,
+      // so offsetMinutes is local offset — safer approach below:
+
+      // Instead, use Intl to get exact timestamp for 10PM Pacific Time:
+
+      // We'll use a better approach:
+      const pacificTimestamp = Date.parse(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        hour12: false,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }).format(new Date(`${dateStr}Z`)));
+
+      return new Date(pacificTimestamp);
     }
 
     const startTime = getPacific10PM();
 
     function update() {
       const now = new Date();
-      let elapsedMs = now - startTime;
+      let elapsed = now - startTime;
 
-      if (elapsedMs < 0) elapsedMs = 0; // If 10PM hasn't happened yet, show 0
+      if (elapsed < 0) elapsed = 0;
 
-      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const totalSeconds = Math.floor(elapsed / 1000);
       const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
       const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
       const secs = String(totalSeconds % 60).padStart(2, '0');
