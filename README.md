@@ -1,1 +1,0 @@
-# infinuhtyy.github.io

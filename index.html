@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stopwatch from 10PM Pacific Time</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: white;
+      font-family: monospace, monospace;
+      font-size: 3em;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #display {
+      letter-spacing: 2px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="display">00:00:00</div>
+
+  <script>
+    // Function to get today’s date at 10PM Pacific Time (PDT/PST)
+    function getPacific10PM() {
+      // Create a Date object for now
+      const now = new Date();
+
+      // Pacific Time offset in minutes (without daylight savings):
+      // Since JS Date uses local time or UTC, use Intl API to get the offset for America/Los_Angeles
+      const options = { timeZone: 'America/Los_Angeles', hour12: false };
+      const pacificDateStr = now.toLocaleString('en-US', { ...options, year:'numeric', month:'2-digit', day:'2-digit' });
+      const [month, day, year] = pacificDateStr.split('/');
+
+      // Construct a string for 10:00:00 PM in Pacific Time zone for today
+      const pacific10PMStr = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}T22:00:00`;
+
+      // Convert that Pacific time to a Date object in local time zone
+      // Use Date.parse with 'America/Los_Angeles' timezone offset calculation:
+      const dateInPacific = new Date(new Date(pacific10PMStr + "-07:00")); // Fixed -07:00 offset for PDT; adjust if needed
+
+      // To handle daylight savings properly, better to use Intl API to get offset:
+      // Since JS doesn't handle timezone offsets directly, approximate with Intl:
+      const pacificTime = new Date(Date.UTC(
+        parseInt(year), parseInt(month)-1, parseInt(day), 22, 0, 0
+      ));
+
+      // Get the offset between UTC and America/Los_Angeles at that time
+      const tzOffsetMinutes = - (new Date(pacificTime.toLocaleString('en-US', {timeZone:'America/Los_Angeles'})).getTimezoneOffset());
+
+      // Adjust pacificTime by tz offset to get correct UTC time
+      const pacific10PM = new Date(pacificTime.getTime() - tzOffsetMinutes * 60000);
+
+      return pacific10PM;
+    }
+
+    const startTime = getPacific10PM();
+
+    function update() {
+      const now = new Date();
+      let elapsedMs = now - startTime;
+
+      if (elapsedMs < 0) elapsedMs = 0; // If 10PM hasn't happened yet, show 0
+
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(totalSeconds % 60).padStart(2, '0');
+
+      document.getElementById('display').textContent = `${hrs}:${mins}:${secs}`;
+    }
+
+    update();
+    setInterval(update, 1000);
+  </script>
+</body>
+</html>
